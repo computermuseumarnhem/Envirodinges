@@ -6,3 +6,5 @@ Fan aan/uit wordt gestuurd op basis van AM2315 thermo/hygro sensors (1 buiten, 2
 Status output 1x/minuut via RS232.
 
 MQTT status wanneer online via LAN mogelijk, maar nog niet geimplementeerd.
+
+Omdat de AM2315 geen instelbaar I2C adres heeft worden ze via een multiplexer (TCA9548) aangesloten.
