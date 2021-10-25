@@ -20,9 +20,9 @@ PrintEx PSerial1 = Serial1;
 #define I2C_TCAADDR     0x70
 #define W5500_CS        7
 
-enum errorlvl { none, no_net, no_sensor23, no_sensor1 } ;
+enum errorlvl { none, no_net, no_sor23, no_sensor1 } ;
 
-bool b_sensor_present[8], b_network, b_serial, b_container, b_sensorcount;
+bool b_sensor_present[4], b_network, b_container, b_sensorcount;
 byte sensor_detected = 0;
 byte brightness = 0;    // how bright the LED is
 byte fadeAmount = 5;    // how many points to fade the LED by
@@ -89,13 +89,12 @@ void printIPAddress()
 }
 
 void setup() {
-  byte sen;
+  byte sensor_index;
   b_network = false;
 
   Serial.begin(9600);
   Serial1.begin(9600);
   delay(2000);
-  b_serial = (Serial);
   
   pinMode(MOSFET, OUTPUT);
   pinMode(ACTIVE_LED, OUTPUT);
@@ -121,43 +120,38 @@ void setup() {
 //  
   Ethernet.init(W5500_CS);  
   Wire.begin();  
-  for (sen=1; sen<=sensor_required; sen++) {
-//#ifdef SENSORCOUNT_4
-//  for (b=4; b<=7; b++) { 
-//#else     
-//  for (b=4; b<=6; b++) {
-//#endif
-    b_sensor_present[sen] = false;
-    set_i2c_mux(sen + MUX_OFFSET);
+  for (sensor_index=1; sensor_index<=sensor_required; sensor_index++) {
+    b_sensor_present[sensor_index] = false;
+    set_i2c_mux(sensor_index + MUX_OFFSET);
     delay(500);
-    switch (sen) {
+    switch (sensor_index) {
       case 1:
-        b_sensor_present[sen] = am2315_1.begin();
+        b_sensor_present[sensor_index] = am2315_1.begin();
         break;
       case 2:
-        b_sensor_present[sen] = am2315_2.begin();
+        b_sensor_present[sensor_index] = am2315_2.begin();
         break;
       case 3:
-        b_sensor_present[sen] = am2315_3.begin();
+        b_sensor_present[sensor_index] = am2315_3.begin();
         break;
 #ifdef SENSORCOUNT_4          
       case 4:
-        b_sensor_present[sen] = am2315_4.begin();
+        b_sensor_present[sensor_index] = am2315_4.begin();
         break;
 #endif          
     }
-    if (b_sensor_present[sen]) {
+    if (b_sensor_present[sensor_index]) {
       sensor_detected += 1;
-      if (Serial) { PSerial.printf("sensor %d - ", sen); };
-      PSerial1.printf("sensor %d - ",sen);
+      if (Serial) { PSerial.printf("sensor %d - ", sensor_index); };
+      PSerial1.printf("sensor %d - ",sensor_index);
       if (Serial) { PSerial.printf("OK\n"); };
       PSerial1.printf("OK\n");
-//          sprintf(outline, "sensor %sen - OK", b);
+//          sprintf(outline, "sensor %sensor_index - OK", b);
 //          output(strlen(outline));
     }
     else {
-      if (Serial) { PSerial.printf("sensor %d - not found, check wiring & pullups!\n", sen); };
-      PSerial1.printf("sensor %d - not found, check wiring & pullups!\n", sen); 
+      if (Serial) { PSerial.printf("sensor %d - not found, check wiring & pullups!\n", sensor_index); };
+      PSerial1.printf("sensor %d - not found, check wiring & pullups!\n", sensor_index); 
 //        sprintf(outline, "sensor %d - not found, check wiring & pullups!", b); 
 //        output(strlen(outline));
     }
@@ -174,7 +168,7 @@ void setup() {
 //  output(strlen(outline));
 //  sprintf(outline, "Setting MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 //  output(strlen(outline));
-  // start Ethernet and UDP
+// start Ethernet and UDP
   auto link = Ethernet.linkStatus();
 
   switch (link) {
@@ -221,24 +215,24 @@ float dewpoint(float t, float h) {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  int sen;
+  int sensor_index;
   float temps[4], humids[4], tdew[4];
   float tint_min, tint_max, humidint_max, tdew_max, tdew_fan;
   bool b_fanon = false;
   bool b_errled = false;
   bool b_readok;
   bool b_sensorfault;
-  char fanstate[4];
+  char c_fanstate[4];
   
   if (millis() > nextrun) {
     nextrun += RUNINTERVAL;
     b_sensorfault = false;
 
-    for (sen=1; sen<=sensor_required; sen++) {
-//      if (b_sensor_present[sen]) {
-        set_i2c_mux((sen + MUX_OFFSET));
+    for (sensor_index=1; sensor_index<=sensor_required; sensor_index++) {
+//      if (b_sensor_present[sensor_index]) {
+        set_i2c_mux((sensor_index + MUX_OFFSET));
         delay(200);
-        switch (sen) {
+        switch (sensor_index) {
           case 1:   // external sensor
             b_readok = am2315_1.readTemperatureAndHumidity(&temps[1], &humids[1]);
             break;
@@ -256,18 +250,14 @@ void loop() {
         };
         if (b_readok == false) {
           b_sensorfault = true;
-          if (Serial) PSerial.printf("C:%d - S%d - missing\n", ContainerNum, sen);
-          PSerial1.printf("C:%d - S%d - missing\n", ContainerNum, sen);        
+          if (Serial) PSerial.printf("C:%d - S%d - missing\n", ContainerNum, sensor_index);
+          PSerial1.printf("C:%d - S%d - missing\n", ContainerNum, sensor_index);        
         }
         else {
-          tdew[sen] = dewpoint(temps[sen], humids[sen]);
-          if (Serial) PSerial.printf("C:%d - S%d - Hum:  %2.1f  Temp: %2.1f  Dewpt: %2.1f\n", ContainerNum, sen, humids[sen], temps[sen], tdew[sen]); 
-          PSerial1.printf("C:%d - S%d - Hum:  %2.1f  Temp: %2.1f  Dewpt: %2.1f\n", ContainerNum, sen, humids[sen], temps[sen], tdew[sen]); 
+          tdew[sensor_index] = dewpoint(temps[sensor_index], humids[sensor_index]);
+          if (Serial) PSerial.printf("C:%d - S%d - Hum:  %2.1f  Temp: %2.1f  Dewpt: %2.1f\n", ContainerNum, sensor_index, humids[sensor_index], temps[sensor_index], tdew[sensor_index]); 
+          PSerial1.printf("C:%d - S%d - Hum:  %2.1f  Temp: %2.1f  Dewpt: %2.1f\n", ContainerNum, sensor_index, humids[sensor_index], temps[sensor_index], tdew[sensor_index]); 
         }
-//      }
-//      else {
-//        b_sensorfault = true;
-//      }
     }
     if (b_sensorfault == false) { 
       tint_max = max(temps[5], temps[6]);           // highest temp inside
@@ -277,14 +267,14 @@ void loop() {
       tdew_fan = dewpoint(tint_min, humids[4]);     // inside temp against outside humidity
       b_fanon = (humidint_max > HUMID_MAX);         // fan on if humid inside
       b_fanon = b_fanon && ((tint_min - tdew_fan) < TDEW_DIFF) ; // ... unless chance of condensation
-      strncpy(fanstate, "on", 3);
+      strncpy(c_fanstate, "on", 3);
     }
     else {
       b_fanon = false;
-      strncpy(fanstate, "off", 4);
+      strncpy(c_fanstate, "off", 4);
     }
-    if (Serial) PSerial.printf("Min temp intern: %2.1f, humid extern: %2.1f, -> dewpt: %2.1f, fan %s\n", tint_min, humidint_max, tdew_fan, fanstate);
-    PSerial1.printf("Min temp intern: %2.1f, humid extern: %2.1f, -> dewpt: %2.1f, fan %s\n", tint_min, humidint_max, tdew_fan, fanstate);
+    if (Serial) PSerial.printf("Min temp intern: %2.1f, humid extern: %2.1f, -> dewpt: %2.1f, fan %s\n", tint_min, humidint_max, tdew_fan, c_fanstate);
+    PSerial1.printf("Min temp intern: %2.1f, humid extern: %2.1f, -> dewpt: %2.1f, fan %s\n", tint_min, humidint_max, tdew_fan, c_fanstate);
 
     fanswitch(b_fanon);
   }
@@ -295,6 +285,10 @@ void loop() {
     nexterrorled = millis() + 60000; // > 1 minute
   }
   if ((b_sensorfault) || (!b_sensorcount)) { nexterrorled = millis() + 5000; };
+  if ( millis() > nexterrorled ) {
+    b_errled = !b_errled;
+    digitalWrite(ERROR_LED, b_errled);
+  }
 
   if (millis() > nextfade) {
     nextfade += 30;                                 // wait for 30 milliseconds to see the dimming effect
