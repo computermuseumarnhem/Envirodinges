@@ -1,17 +1,22 @@
-#define CODEVERSION "0.7"
+#define CODEVERSION "0.9"
+
+#undef ETHERNET           // do not define when insufficient memory
 
 #define MOSFET            10
 #define ACTIVE_LED        9
 #define ERROR_LED         8
 #define CONTAINER_SELECT  5
 
-#include <SPI.h>
-#include <Ethernet.h>
+
 #include <PrintEx.h>
 #include <Wire.h>
 #include <Adafruit_AM2315.h>
 #include <math.h>
+#ifdef ETHERNET
+#include <SPI.h>
+#include <Ethernet.h>
 #include <Adafruit_MQTT.h>
+#endif
 
 PrintEx PSerial = Serial;
 PrintEx PSerial1 = Serial1;
@@ -20,21 +25,21 @@ PrintEx PSerial1 = Serial1;
 #define I2C_TCAADDR     0x70
 #define W5500_CS        7
 
-enum errorlvl { none, no_net, no_sor23, no_sensor1 } ;
-
 bool b_sensor_present[4], b_network, b_container, b_sensorcount;
+bool b_errled = false;
 byte sensor_detected = 0;
-byte brightness = 0;    // how bright the LED is
-byte fadeAmount = 5;    // how many points to fade the LED by
+byte brightness = 128;    // how bright the LED is
+byte fadeAmount = 8;    // how many points to fade the LED by
 long nextrun = 0;
 long nextfade = 0;
+long nextfanshow = 0;
 long nexterrorled = 0;
 
 #define RUNINTERVAL   60000
 #define FADEINTERVAL  30
 
 #define TDEW_DIFF     10.0  // fan off if dewpoint too close to temperature
-#define HUMID_MAX     75.0  // fan on if humidity inside exceeded
+#define HUMID_MIN     45.0  // fan on if humidity inside exceeded
 
 // #define SENSORCOUNT_4  // only if 4 AM2315 sensors
 #define MUX_OFFSET  3
@@ -69,24 +74,30 @@ void set_i2c_mux(byte i2c_sel) {
 void fanswitch(bool state)
 {
   digitalWrite(MOSFET, state);
+  nextfanshow = millis() + 5000;
 }
 
-//void output(byte len)
-//{
-//  char buf[80];
-//  memset(buf, 0, 80);
-//  strncpy(buf, outline, len);
-//  if (Serial) Serial.println(buf);
-//  Serial1.println(buf);
-//  memset(outline, 0, 80);
-//}
+void output_rtn() {
+  if (Serial) Serial.println();
+  Serial1.println();
+}
+void output()
+{
+  char buf[80];
+  memset(buf, 0, 80);
+  strncpy(buf, outline, min(79, strlen(outline)));
+  if (Serial) Serial.println(buf);
+  Serial1.println(buf);
+  memset(outline, 0, 80);
+}
 
+#ifdef ETHERNET
 void printIPAddress()
 {
   IPAddress myIp = Ethernet.localIP();
-  if (Serial) { PSerial.printf("IP address: %d.%d.%d.%d\n", myIp[0], myIp[1], myIp[2], myIp[3]); };
-  PSerial1.printf("IP address: %d.%d.%d.%d\n", myIp[0], myIp[1], myIp[2], myIp[3]);
+  sprintf(outline, "IP address: %d.%d.%d.%d", myIp[0], myIp[1], myIp[2], myIp[3]);
 }
+#endif
 
 void setup() {
   byte sensor_index;
@@ -95,11 +106,12 @@ void setup() {
   Serial.begin(9600);
   Serial1.begin(9600);
   delay(2000);
+
   
   pinMode(MOSFET, OUTPUT);
   pinMode(ACTIVE_LED, OUTPUT);
   pinMode(ERROR_LED, OUTPUT);
-  digitalWrite(ACTIVE_LED, true);
+  analogWrite(ACTIVE_LED, 128);
   digitalWrite(ERROR_LED, true);
   digitalWrite(MOSFET, true);
 
@@ -113,12 +125,12 @@ void setup() {
      mac[5] = 0x02;  
      ContainerNum = 2;
   }
-  if (Serial) { PSerial.printf("\nEnvirodinges %s, Container %d\n\n", CODEVERSION, ContainerNum); };
-  PSerial1.printf("\nEnvirodinges %s, Container %d\n\n", CODEVERSION, ContainerNum); 
-//  sprintf(outline, "\nEnvirodinges %s, Container %d\n\n", CODEVERSION, ContainerNum); 
-//  output(strlen(outline));
-//  
-  Ethernet.init(W5500_CS);  
+  sprintf(outline, "\nEnvirodinges %s, Container %d\n\n", CODEVERSION, ContainerNum); 
+  output();
+
+#ifdef ETHERNET
+  Ethernet.init(W5500_CS); 
+#endif   
   Wire.begin();  
   for (sensor_index=1; sensor_index<=sensor_required; sensor_index++) {
     b_sensor_present[sensor_index] = false;
@@ -142,56 +154,44 @@ void setup() {
     }
     if (b_sensor_present[sensor_index]) {
       sensor_detected += 1;
-      if (Serial) { PSerial.printf("sensor %d - ", sensor_index); };
-      PSerial1.printf("sensor %d - ",sensor_index);
-      if (Serial) { PSerial.printf("OK\n"); };
-      PSerial1.printf("OK\n");
-//          sprintf(outline, "sensor %sensor_index - OK", b);
-//          output(strlen(outline));
+      sprintf(outline, "sensor %d - OK", sensor_index);
+      output();
     }
     else {
-      if (Serial) { PSerial.printf("sensor %d - not found, check wiring & pullups!\n", sensor_index); };
-      PSerial1.printf("sensor %d - not found, check wiring & pullups!\n", sensor_index); 
-//        sprintf(outline, "sensor %d - not found, check wiring & pullups!", b); 
-//        output(strlen(outline));
+      sprintf(outline, "sensor %d - not found, check wiring & pullups!", sensor_index); 
+      output();
     }
     delay(1000);     
   }
-  if (Serial) {
-    PSerial.printf("%s\n\n\n", "Envirodinges starting");
-    PSerial.printf("Setting MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  }
-  PSerial1.printf("%s\n\n\n", "Envirodinges starting");
-  PSerial1.printf("Setting MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  sprintf(outline, "%s", "Envirodinges starting");
+  output();
   
-//  sprintf(outline, "%s\n\n\n", "Envirodinges starting");
-//  output(strlen(outline));
-//  sprintf(outline, "Setting MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-//  output(strlen(outline));
-// start Ethernet and UDP
+#ifdef ETHERNET  
+  sprintf(outline, "Setting MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  output();
+  // start Ethernet and UDP
   auto link = Ethernet.linkStatus();
 
   switch (link) {
     case Unknown:
-      if (Serial) { PSerial.printf("Link status: %s\n", "Unknown"); };
-      PSerial1.printf("Link status: %s\n", "Unknown");
+      sprintf(outline, "Link status: %s", "Unknown");
       break;
     case LinkON:
-      if (Serial) { PSerial.printf("Link status: %s\n", "UP"); };
-      PSerial1.printf("Link status: %s\n", "UP");
+      sprintf(outline, "Link status: %s", "UP");
       b_network = true;
       break;
     case LinkOFF:
-      if (Serial) { PSerial.printf("Link status: %s\n", "DOWN"); };
-      PSerial1.printf("Link status: %s\n", "DOWN");
+      sprintf(outline, "Link status: %s", "DOWN");
+      b_network = true;
       break;
   }
+  output();
 
   if (b_network) {
     if (Ethernet.begin(mac) == 0) {
       b_network = false;
-      if (Serial) { PSerial.printf("%s\n", "Failed to configure Ethernet using DHCP"); };
-      PSerial1.printf("%s\n", "Failed to configure Ethernet using DHCP"); 
+      sprintf(outline, "%s", "Failed to configure Ethernet using DHCP");
+      output();
     }
     else {
       printIPAddress();
@@ -199,6 +199,9 @@ void setup() {
       digitalWrite(ERROR_LED, false);
     }
   }
+#endif
+
+  fanswitch(false);
 }
 
 float dewpoint(float t, float h) {
@@ -215,21 +218,30 @@ float dewpoint(float t, float h) {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  int sensor_index;
+  byte sensor_index;
   float temps[4], humids[4], tdew[4];
   float tint_min, tint_max, humidint_max, tdew_max, tdew_fan;
-  bool b_fanon = false;
-  bool b_errled = false;
-  bool b_readok;
-  bool b_sensorfault;
-  char c_fanstate[4];
+  bool b_fanon, b_readok, b_sensorfault;
+
+  char fanstate[4];
+  long errorledinterval = 65535; // > 1 minute
+
+#ifdef ETHERNET
+  if (!b_network) {
+    errorledinterval = 20000;
+  }
+#endif
+  
+  if ((b_sensorfault) || (!b_sensorcount)) { 
+    errorledinterval = 2000; 
+  };
   
   if (millis() > nextrun) {
+
     nextrun += RUNINTERVAL;
     b_sensorfault = false;
 
     for (sensor_index=1; sensor_index<=sensor_required; sensor_index++) {
-//      if (b_sensor_present[sensor_index]) {
         set_i2c_mux((sensor_index + MUX_OFFSET));
         delay(200);
         switch (sensor_index) {
@@ -250,69 +262,73 @@ void loop() {
         };
         if (b_readok == false) {
           b_sensorfault = true;
-          if (Serial) PSerial.printf("C:%d - S%d - missing\n", ContainerNum, sensor_index);
-          PSerial1.printf("C:%d - S%d - missing\n", ContainerNum, sensor_index);        
+          sprintf(outline, "C%d - S%d - missing", ContainerNum, sensor_index);
+          output();       
         }
         else {
           tdew[sensor_index] = dewpoint(temps[sensor_index], humids[sensor_index]);
-          if (Serial) PSerial.printf("C:%d - S%d - Hum:  %2.1f  Temp: %2.1f  Dewpt: %2.1f\n", ContainerNum, sensor_index, humids[sensor_index], temps[sensor_index], tdew[sensor_index]); 
-          PSerial1.printf("C:%d - S%d - Hum:  %2.1f  Temp: %2.1f  Dewpt: %2.1f\n", ContainerNum, sensor_index, humids[sensor_index], temps[sensor_index], tdew[sensor_index]); 
+          sprintf(outline, "C%d - S%d - Temp: %2.1fC  Hum:  %2.1f%%  Dewpt: %2.1fC", ContainerNum, sensor_index, temps[sensor_index], humids[sensor_index], tdew[sensor_index]); 
+          output(); 
         }
+
     }
     if (b_sensorfault == false) { 
-      tint_max = max(temps[5], temps[6]);           // highest temp inside
-      tint_min = min(temps[5], temps[6]);           // lowest temp inside
-      humidint_max = max(humids[5], humids[6]);     // highest humidity inside
+      tint_max = max(temps[2], temps[3]);           // highest temp inside
+      tint_min = min(temps[2], temps[3]);           // lowest temp inside
+      humidint_max = max(humids[2], humids[3]);     // highest humidity inside
       tdew_max = dewpoint(tint_min, humidint_max);  // highest dewpoint inside
-      tdew_fan = dewpoint(tint_min, humids[4]);     // inside temp against outside humidity
-      b_fanon = (humidint_max > HUMID_MAX);         // fan on if humid inside
-      b_fanon = b_fanon && ((tint_min - tdew_fan) < TDEW_DIFF) ; // ... unless chance of condensation
-      strncpy(c_fanstate, "on", 3);
+      tdew_fan = dewpoint(tint_min, humids[1]);     // inside temp against outside humidity
+      b_fanon = (humidint_max > HUMID_MIN);         // fan on if humid inside
+      b_fanon = b_fanon && ((tint_min - TDEW_DIFF) > tdew_fan) ; // ... unless chance of condensation
+      if (b_fanon) {
+        strncpy(fanstate, "on", 3);
+      }
+      else {
+        strncpy(fanstate, "off", 4);
+      }
+      sprintf(outline, "C%d - Min temp intern: %2.1fC, humid extern: %2.1f%%, -> dewpt: %2.1fC, fan %s", ContainerNum, tint_min, humids[1], tdew_fan, fanstate);
     }
     else {
       b_fanon = false;
-      strncpy(c_fanstate, "off", 4);
+      strncpy(fanstate, "off", 4);
+      sprintf(outline, "C%d - Sensor read error, fan %s", ContainerNum, fanstate);
     }
-    if (Serial) PSerial.printf("Min temp intern: %2.1f, humid extern: %2.1f, -> dewpt: %2.1f, fan %s\n", tint_min, humidint_max, tdew_fan, c_fanstate);
-    PSerial1.printf("Min temp intern: %2.1f, humid extern: %2.1f, -> dewpt: %2.1f, fan %s\n", tint_min, humidint_max, tdew_fan, c_fanstate);
-
+    output();
     fanswitch(b_fanon);
   }
-  if (!b_network) {
-    nexterrorled = millis() + 20000;
-  }
-  else {
-    nexterrorled = millis() + 60000; // > 1 minute
-  }
-  if ((b_sensorfault) || (!b_sensorcount)) { nexterrorled = millis() + 5000; };
-  if ( millis() > nexterrorled ) {
-    b_errled = !b_errled;
-    digitalWrite(ERROR_LED, b_errled);
-  }
 
-  if (millis() > nextfade) {
-    nextfade += 30;                                 // wait for 30 milliseconds to see the dimming effect
-    analogWrite(ACTIVE_LED, brightness);
-  
-    // change the brightness for next time through the loop:
-    brightness = brightness + fadeAmount;
-  
-    // reverse the direction of the fading at the ends of the fade:
-    if (brightness <= 0 || brightness >= 255) {
-      fadeAmount = -fadeAmount;
+  if (millis() > nextfanshow) {   // show controller activity
+    if (millis() > nextfade) {              
+      nextfade += 64;     // wait for 64 milliseconds to see the dimming effect
+      analogWrite(ACTIVE_LED, brightness);
+
+      // change the brightness for next time through the loop:
+      brightness = brightness + fadeAmount;
+      // reverse the direction of the fading at the ends of the fade:
+      if (brightness < 8 || brightness >= 248) {
+        fadeAmount = -fadeAmount;
+      }    
     }
-
-    // fanswitch((fadeAmount > 0)); // for testing
   }
-  if ((millis() > nexterrorled) && (b_errled = false)) {
-    b_errled = true;
-    digitalWrite(ERROR_LED, true);
-    nexterrorled += 1000;
-  }
-  else {
-    b_errled = false;
-    digitalWrite(ERROR_LED, false);
-    nexterrorled += 60000;
+  else {                        // show fan state for 5 seconds
+    if (b_fanon == true) {
+      brightness = 240;   
+    }
+    else
+    {
+      brightness = 8;
+    }
+    analogWrite(ACTIVE_LED, brightness);
   }
 
+  if (millis() > nexterrorled) {
+    if (b_errled == true ) {
+      b_errled = false;
+    }
+    else {
+      b_errled = true;    
+    }
+    digitalWrite(ERROR_LED, b_errled);
+    nexterrorled += errorledinterval;
+  }
 }

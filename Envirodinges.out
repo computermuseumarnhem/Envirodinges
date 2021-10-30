@@ -1,0 +1,16 @@
+Envirodinges 0.9, Container 1
+
+
+sensor 1 - OK
+sensor 2 - not found, check wiring & pullups!
+sensor 3 - OK
+Envirodinges starting
+C1 - S1 - Temp: 21.4C  Hum:  53.1%  Dewpt: -3.5C
+C1 - S2 - missing
+C1 - S3 - Temp: 21.3C  Hum:  53.4%  Dewpt: -3.5C
+C1 - Sensor read error, fan off
+C1 - S1 - Temp: 21.4C  Hum:  53.1%  Dewpt: -3.5C
+C1 - S2 - missing
+C1 - S3 - Temp: 21.3C  Hum:  53.4%  Dewpt: -3.5C
+C1 - Sensor read error, fan off
+
