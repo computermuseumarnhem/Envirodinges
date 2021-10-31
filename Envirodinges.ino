@@ -1,4 +1,4 @@
-#define CODEVERSION "0.9"
+#define CODEVERSION "0.91"
 
 #undef ETHERNET           // do not define when insufficient memory
 
@@ -25,7 +25,11 @@ PrintEx PSerial1 = Serial1;
 #define I2C_TCAADDR     0x70
 #define W5500_CS        7
 
-bool b_sensor_present[4], b_network, b_container, b_sensorcount;
+static uint8_t mac[] = { 0x90, 0xA2, 0xDA, 0x42, 0x42, 0x00 };
+static char outline[80];
+
+byte ContainerNum;
+bool b_sensor_present[4], b_network, b_container;
 bool b_errled = false;
 byte sensor_detected = 0;
 byte brightness = 128;    // how bright the LED is
@@ -34,9 +38,10 @@ long nextrun = 0;
 long nextfade = 0;
 long nextfanshow = 0;
 long nexterrorled = 0;
+long errorledinterval = 65000; // > 1 minute
 
-#define RUNINTERVAL   60000
-#define FADEINTERVAL  30
+#define RUNINTERVAL   60000	// 1 minute
+#define FADEINTERVAL  64
 
 #define TDEW_DIFF     10.0  // fan off if dewpoint too close to temperature
 #define HUMID_MIN     45.0  // fan on if humidity inside exceeded
@@ -57,10 +62,6 @@ Adafruit_AM2315 am2315_3;
   #define I2CMUX_H    6 
 #endif
 
-static uint8_t mac[] = { 0x90, 0xA2, 0xDA, 0x42, 0x42, 0x00 };
-static char outline[80];
-
-byte ContainerNum;
 
 void set_i2c_mux(byte i2c_sel) {
   if ((i2c_sel < I2CMUX_L) || (i2c_sel > I2CMUX_H)) return;
@@ -77,10 +78,6 @@ void fanswitch(bool state)
   nextfanshow = millis() + 5000;
 }
 
-void output_rtn() {
-  if (Serial) Serial.println();
-  Serial1.println();
-}
 void output()
 {
   char buf[80];
@@ -153,7 +150,6 @@ void setup() {
 #endif          
     }
     if (b_sensor_present[sensor_index]) {
-      sensor_detected += 1;
       sprintf(outline, "sensor %d - OK", sensor_index);
       output();
     }
@@ -200,7 +196,8 @@ void setup() {
     }
   }
 #endif
-
+  digitalWrite(ERROR_LED, false);
+  nexterrorled = millis();
   fanswitch(false);
 }
 
@@ -224,20 +221,9 @@ void loop() {
   bool b_fanon, b_readok, b_sensorfault;
 
   char fanstate[4];
-  long errorledinterval = 65535; // > 1 minute
 
-#ifdef ETHERNET
-  if (!b_network) {
-    errorledinterval = 20000;
-  }
-#endif
-  
-  if ((b_sensorfault) || (!b_sensorcount)) { 
-    errorledinterval = 2000; 
-  };
-  
+
   if (millis() > nextrun) {
-
     nextrun += RUNINTERVAL;
     b_sensorfault = false;
 
@@ -295,11 +281,23 @@ void loop() {
     }
     output();
     fanswitch(b_fanon);
+#ifdef ETHERNET
+    if (!b_network) {
+      errorledinterval = 10000;
+    }
+#endif
+    
+    if (b_sensorfault) { 
+      errorledinterval = 2000; 
+    }
+    else {
+      errorledinterval = 65000;
+    }
   }
 
   if (millis() > nextfanshow) {   // show controller activity
     if (millis() > nextfade) {              
-      nextfade += 64;     // wait for 64 milliseconds to see the dimming effect
+      nextfade += FADEINTERVAL;     // wait for FADEINTERVAL milliseconds to see the dimming effect
       analogWrite(ACTIVE_LED, brightness);
 
       // change the brightness for next time through the loop:
@@ -322,13 +320,18 @@ void loop() {
   }
 
   if (millis() > nexterrorled) {
-    if (b_errled == true ) {
-      b_errled = false;
+    nexterrorled += errorledinterval;
+    if (errorledinterval < 60000) { // error condition
+      if (b_errled != false ) {
+        b_errled = false;
+      }
+      else {
+        b_errled = true;    
+      }
     }
     else {
-      b_errled = true;    
+      b_errled = false;
     }
     digitalWrite(ERROR_LED, b_errled);
-    nexterrorled += errorledinterval;
   }
 }
