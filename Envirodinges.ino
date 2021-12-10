@@ -1,4 +1,4 @@
-#define CODEVERSION "0.91"
+#define CODEVERSION "0.92"
 
 #undef ETHERNET           // do not define when insufficient memory
 
@@ -31,7 +31,6 @@ static char outline[80];
 byte ContainerNum;
 bool b_sensor_present[4], b_network, b_container;
 bool b_errled = false;
-byte sensor_detected = 0;
 byte brightness = 128;    // how bright the LED is
 byte fadeAmount = 8;    // how many points to fade the LED by
 long nextrun = 0;
@@ -39,6 +38,7 @@ long nextfade = 0;
 long nextfanshow = 0;
 long nexterrorled = 0;
 long errorledinterval = 65000; // > 1 minute
+char * sensornames[4] = { "external", "inlet", "outlet", "spare" };
 
 #define RUNINTERVAL   60000	// 1 minute
 #define FADEINTERVAL  64
@@ -113,7 +113,7 @@ void setup() {
   digitalWrite(MOSFET, true);
 
   pinMode(CONTAINER_SELECT, INPUT_PULLUP);
-  if (digitalRead(CONTAINER_SELECT) == HIGH) {
+  if (digitalRead(CONTAINER_SELECT) == LOW) {
      mac[5] = 0x01;  
      ContainerNum = 1;
   }
@@ -150,11 +150,11 @@ void setup() {
 #endif          
     }
     if (b_sensor_present[sensor_index]) {
-      sprintf(outline, "sensor %d - OK", sensor_index);
+      sprintf(outline, "sensor %d - OK (%s)", sensor_index, sensornames[sensor_index-1]);
       output();
     }
     else {
-      sprintf(outline, "sensor %d - not found, check wiring & pullups!", sensor_index); 
+      sprintf(outline, "sensor %d - not found, check wiring & pullups! (%s)", sensor_index, sensornames[sensor_index-1]); 
       output();
     }
     delay(1000);     
@@ -248,7 +248,7 @@ void loop() {
         };
         if (b_readok == false) {
           b_sensorfault = true;
-          sprintf(outline, "C%d - S%d - missing", ContainerNum, sensor_index);
+          sprintf(outline, "C%d - S%d - missing  (%s)", ContainerNum, sensor_index, sensornames[sensor_index-1]);
           output();       
         }
         else {
