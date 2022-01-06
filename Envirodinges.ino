@@ -1,4 +1,4 @@
-#define CODEVERSION "0.92"
+#define CODEVERSION "0.95"
 
 #undef ETHERNET           // do not define when insufficient memory
 
@@ -7,11 +7,11 @@
 #define ERROR_LED         8
 #define CONTAINER_SELECT  5
 
-
 #include <PrintEx.h>
 #include <Wire.h>
 #include <Adafruit_AM2315.h>
 #include <math.h>
+
 #ifdef ETHERNET
 #include <SPI.h>
 #include <Ethernet.h>
@@ -28,8 +28,8 @@ PrintEx PSerial1 = Serial1;
 static uint8_t mac[] = { 0x90, 0xA2, 0xDA, 0x42, 0x42, 0x00 };
 static char outline[80];
 
-byte ContainerNum;
-bool b_sensor_present[4], b_network, b_container;
+byte containernum;
+bool b_sensor_present[4], b_network;
 bool b_errled = false;
 byte brightness = 128;    // how bright the LED is
 byte fadeAmount = 8;    // how many points to fade the LED by
@@ -38,7 +38,7 @@ long nextfade = 0;
 long nextfanshow = 0;
 long nexterrorled = 0;
 long errorledinterval = 65000; // > 1 minute
-char * sensornames[4] = { "external", "inlet", "outlet", "spare" };
+char * sensorname[4] = { "external", "inlet", "outlet", "spare" };
 
 #define RUNINTERVAL   60000	// 1 minute
 #define FADEINTERVAL  64
@@ -78,21 +78,36 @@ void fanswitch(bool state)
   nextfanshow = millis() + 5000;
 }
 
-void output()
+void outputvalue(uint8_t sensor, char * outstr)
 {
   char buf[80];
+
+//  Serial.print(strlen(outstr));
+//  Serial.print("  ");
   memset(buf, 0, 80);
-  strncpy(buf, outline, min(79, strlen(outline)));
+  sprintf(buf, "container%d.sensor.%s.%s", containernum, sensorname[sensor-1], outstr);
   if (Serial) Serial.println(buf);
   Serial1.println(buf);
-  memset(outline, 0, 80);
+  memset(outstr, 0, 80);
 }
 
+void outputstatus(char * outstr)
+{
+  char buf[80];
+
+//  Serial.print(strlen(outstr));
+//  Serial.print("  ");
+  memset(buf, 0, 80);
+  sprintf(buf, "container%d.status.%s", containernum, outstr);
+  if (Serial) Serial.println(buf);
+  Serial1.println(buf);
+  memset(outstr, 0, 80);
+}
 #ifdef ETHERNET
 void printIPAddress()
 {
   IPAddress myIp = Ethernet.localIP();
-  sprintf(outline, "IP address: %d.%d.%d.%d", myIp[0], myIp[1], myIp[2], myIp[3]);
+  sprintf(outline, "IP: %d.%d.%d.%d\0", myIp[0], myIp[1], myIp[2], myIp[3]);
 }
 #endif
 
@@ -102,7 +117,7 @@ void setup() {
 
   Serial.begin(9600);
   Serial1.begin(9600);
-  delay(2000);
+  delay(5000);
 
   
   pinMode(MOSFET, OUTPUT);
@@ -115,15 +130,17 @@ void setup() {
   pinMode(CONTAINER_SELECT, INPUT_PULLUP);
   if (digitalRead(CONTAINER_SELECT) == LOW) {
      mac[5] = 0x01;  
-     ContainerNum = 1;
+     containernum = 1;
   }
   else
   {
      mac[5] = 0x02;  
-     ContainerNum = 2;
+     containernum = 2;
   }
-  sprintf(outline, "\nEnvirodinges %s, Container %d\n\n", CODEVERSION, ContainerNum); 
-  output();
+  sprintf(outline, "init.version %s\0", CODEVERSION); 
+  outputstatus(outline);
+  sprintf(outline, "init.container %d\0", containernum); 
+  outputstatus(outline);
 
 #ifdef ETHERNET
   Ethernet.init(W5500_CS); 
@@ -149,45 +166,48 @@ void setup() {
         break;
 #endif          
     }
+    // memset(outline, 0, 80);
     if (b_sensor_present[sensor_index]) {
-      sprintf(outline, "sensor %d - OK (%s)", sensor_index, sensornames[sensor_index-1]);
-      output();
+      sprintf(outline, "%s\0", "status OK\0");
     }
     else {
-      sprintf(outline, "sensor %d - not found, check wiring & pullups! (%s)", sensor_index, sensornames[sensor_index-1]); 
-      output();
+      sprintf(outline, "%s\0", "status missing - check wiring & pullups!"); 
     }
+    outputvalue(sensor_index, outline);
     delay(1000);     
   }
-  sprintf(outline, "%s", "Envirodinges starting");
-  output();
+  // memset(outline, 0, 80);
+  sprintf(outline, "%s\0", "code starting");
+  outputstatus(outline);
   
 #ifdef ETHERNET  
-  sprintf(outline, "Setting MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  output();
+  // memset(outline, 0, 80);
+  sprintf(outline, "MAC: %02x:%02x:%02x:%02x:%02x:%02x\n\0", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  output(statusoutline);
   // start Ethernet and UDP
   auto link = Ethernet.linkStatus();
-
+  // memset(outline, 0, 80);
   switch (link) {
     case Unknown:
-      sprintf(outline, "Link status: %s", "Unknown");
+      sprintf(outline, "netw0rk.linkstatus %s\0", "Unknown");
       break;
     case LinkON:
-      sprintf(outline, "Link status: %s", "UP");
+      sprintf(outline, "network.linkstatus %s\0", "UP");
       b_network = true;
       break;
     case LinkOFF:
-      sprintf(outline, "Link status: %s", "DOWN");
+      sprintf(outline, "network.linkstatus %s\0", "DOWN");
       b_network = true;
       break;
   }
-  output();
+  outputstatus(outline);
 
   if (b_network) {
     if (Ethernet.begin(mac) == 0) {
       b_network = false;
-      sprintf(outline, "%s", "Failed to configure Ethernet using DHCP");
-      output();
+      // memset(outline, 0, 80);
+      sprintf(outline, "%s\0", "network.dhcp fail");
+      outputstatus(outline);
     }
     else {
       printIPAddress();
@@ -220,7 +240,7 @@ void loop() {
   float tint_min, tint_max, humidint_max, tdew_max, tdew_fan;
   bool b_fanon, b_readok, b_sensorfault;
 
-  char fanstate[4];
+  char *fanstate[] { "off", "on" };
 
 
   if (millis() > nextrun) {
@@ -229,7 +249,7 @@ void loop() {
 
     for (sensor_index=1; sensor_index<=sensor_required; sensor_index++) {
         set_i2c_mux((sensor_index + MUX_OFFSET));
-        delay(200);
+        delay(500);
         switch (sensor_index) {
           case 1:   // external sensor
             b_readok = am2315_1.readTemperatureAndHumidity(&temps[1], &humids[1]);
@@ -246,18 +266,22 @@ void loop() {
             break;
 #endif
         };
+        // memset(outline, 0, 80);
         if (b_readok == false) {
           b_sensorfault = true;
-          sprintf(outline, "C%d - S%d - missing  (%s)", ContainerNum, sensor_index, sensornames[sensor_index-1]);
-          output();       
+          sprintf(outline, "%s\0", "status missing\0");
         }
         else {
           tdew[sensor_index] = dewpoint(temps[sensor_index], humids[sensor_index]);
-          sprintf(outline, "C%d - S%d - Temp: %2.1fC  Hum:  %2.1f%%  Dewpt: %2.1fC", ContainerNum, sensor_index, temps[sensor_index], humids[sensor_index], tdew[sensor_index]); 
-          output(); 
+          sprintf(outline, "temp: %2.1fC\0", temps[sensor_index]);
+          outputvalue(sensor_index, outline); 
+          sprintf(outline, "hum:  %2.1f%%\0", humids[sensor_index]);
+          outputvalue(sensor_index, outline); 
+          sprintf(outline, "dewpt: %2.1fC\0", tdew[sensor_index])
         }
-
+        outputvalue(sensor_index, outline); 
     }
+    // memset(outline, 0, 80);
     if (b_sensorfault == false) { 
       tint_max = max(temps[2], temps[3]);           // highest temp inside
       tint_min = min(temps[2], temps[3]);           // lowest temp inside
@@ -266,20 +290,19 @@ void loop() {
       tdew_fan = dewpoint(tint_min, humids[1]);     // inside temp against outside humidity
       b_fanon = (humidint_max > HUMID_MIN);         // fan on if humid inside
       b_fanon = b_fanon && ((tint_min - TDEW_DIFF) > tdew_fan) ; // ... unless chance of condensation
-      if (b_fanon) {
-        strncpy(fanstate, "on", 3);
-      }
-      else {
-        strncpy(fanstate, "off", 4);
-      }
-      sprintf(outline, "C%d - Min temp intern: %2.1fC, humid extern: %2.1f%%, -> dewpt: %2.1fC, fan %s", ContainerNum, tint_min, humids[1], tdew_fan, fanstate);
+      sprintf(outline, "fan.min.temp.intern: %2.1fC\0", tint_min);
+      outputstatus(outline);
+      sprintf(outline, "fan.humid.extern: %2.1f%%\0", humids[1]);
+      outputstatus(outline);
+      sprintf(outline, "fan.dewpt: %2.1fC\0", tdew_fan);
+      outputstatus(outline);
+      sprintf(outline, "fan.status %s\0", fanstate[b_fanon]);
     }
     else {
       b_fanon = false;
-      strncpy(fanstate, "off", 4);
-      sprintf(outline, "C%d - Sensor read error, fan %s", ContainerNum, fanstate);
+      sprintf(outline, "fan.status %s\0", "off - sensor read error");
     }
-    output();
+    outputstatus(outline);
     fanswitch(b_fanon);
 #ifdef ETHERNET
     if (!b_network) {

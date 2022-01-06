@@ -1,34 +1,19 @@
-Envirodinges 0.9, Container 1
-
-
-sensor 1 - OK
-sensor 2 - OK
-sensor 3 - OK
-Envirodinges starting
-C1 - S1 - Temp: 5.3C  Hum:  94.4%  Dewpt: -0.6C
-C1 - S2 - Temp: 5.0C  Hum:  82.2%  Dewpt: -2.0C
-C1 - S3 - Temp: 5.5C  Hum:  87.3%  Dewpt: -1.3C
-C1 - Min temp intern: 5.0C, humid extern: 94.4%, -> dewpt: -0.6C, fan off
-C1 - S1 - Temp: 5.3C  Hum:  94.4%  Dewpt: -0.6C
-C1 - S2 - Temp: 5.0C  Hum:  82.2%  Dewpt: -2.0C
-C1 - S3 - Temp: 5.5C  Hum:  87.3%  Dewpt: -1.3C
-C1 - Min temp intern: 5.0C, humid extern: 94.4%, -> dewpt: -0.6C, fan off
-C1 - S1 - Temp: 5.3C  Hum:  94.4%  Dewpt: -0.6C
-C1 - S2 - Temp: 5.0C  Hum:  82.3%  Dewpt: -2.0C
-C1 - S3 - Temp: 5.5C  Hum:  87.2%  Dewpt: -1.4C
-C1 - Min temp intern: 5.0C, humid extern: 94.4%, -> dewpt: -0.6C, fan off
-
-
-
-Envirodinges 0.92, Container 2
-
-
-sensor 1 - not found, check wiring & pullups! (external)
-sensor 2 - not found, check wiring & pullups! (inlet)
-sensor 3 - not found, check wiring & pullups! (outlet)
-
-Envirodinges starting
-C2 - S1 - missing  (external)
-C2 - S2 - missing  (inlet)
-C2 - S3 - missing  (outlet)
-
+container1.status.init.version 0.95
+container1.status.init.container 1
+container1.sensor.external.status OK
+container1.sensor.inlet.status OK
+container1.sensor.outlet.status OK
+container1.status.code starting
+container1.sensor.external.temp: 9.5C
+container1.sensor.external.hum:  83.7%
+container1.sensor.external.dewpt: -1.5C
+container1.sensor.inlet.temp: 5.1C
+container1.sensor.inlet.hum:  91.5%
+container1.sensor.inlet.dewpt: -0.9C
+container1.sensor.outlet.temp: 7.1C
+container1.sensor.outlet.hum:  73.6%
+container1.sensor.outlet.dewpt: -2.8C
+container1.status.fan.min.temp.intern: 5.1C
+container1.status.fan.humid.extern: 83.7%
+container1.status.fan.dewpt: -1.8C
+container1.status.fan.status off
