@@ -1,0 +1,26 @@
+--- /home/denz/Drive/CMA/Envirodinges/serial-mux/.pio/libdeps/sparkfun_promicro16/AltSoftSerial/config/AltSoftSerial_Boards.h	2016-02-17 20:16:32.000000000 +0100
++++ /home/denz/Drive/CMA/Envirodinges/serial-mux/AltSoftSerial_Boards.h	2022-01-12 00:41:28.869215563 +0100
+@@ -94,15 +94,15 @@
+ //
+ #elif defined(ARDUINO_AVR_YUN) || defined(ARDUINO_AVR_LEONARDO) || defined(__AVR_ATmega32U4__)
+ 
+-  //#define ALTSS_USE_TIMER1
+-  //#define INPUT_CAPTURE_PIN		4  // receive
+-  //#define OUTPUT_COMPARE_A_PIN	9 // transmit
+-  //#define OUTPUT_COMPARE_B_PIN	10 // unusable PWM
+-  //#define OUTPUT_COMPARE_C_PIN	11 // unusable PWM
++  #define ALTSS_USE_TIMER1
++  #define INPUT_CAPTURE_PIN		4  // receive
++  #define OUTPUT_COMPARE_A_PIN	9 // transmit
++  #define OUTPUT_COMPARE_B_PIN	10 // unusable PWM
++  #define OUTPUT_COMPARE_C_PIN	11 // unusable PWM
+ 
+-  #define ALTSS_USE_TIMER3
+-  #define INPUT_CAPTURE_PIN		13 // receive
+-  #define OUTPUT_COMPARE_A_PIN		5 // transmit
++  //#define ALTSS_USE_TIMER3
++  //#define INPUT_CAPTURE_PIN		13 // receive
++  //#define OUTPUT_COMPARE_A_PIN		5 // transmit
+ 
+ 
+ // Arduino Mega
