@@ -31,8 +31,26 @@
  *                   -------------
  *   
  *
- * 
+ * Of course, I mounted the device the other way around.
  *  
+ *      -------------
+ *  10  |             |  9  TX   Serial2
+ *  16  |             |  8
+ *  14  |             |  7
+ *  15  |             |  6
+ *  18  |             |  5
+ *  19  |             |  4  RX   Serial2
+ *  20  |             |  3
+ *  21  |             |  2
+ * VCC  |             | GND
+ * RST  |             | GND
+ * GND  |    -----    |  0  RX   Serial1
+ * RAW  |   |     |   |  1  TX   Serial1
+ *       ---|     |---
+ *           -----
+ *                       USB
+ * 
+ * 
  */
 
 
@@ -49,6 +67,11 @@ void setup() {
     Serial2.begin(9600);
     Buffer1 = "";
     Buffer2 = "";
+
+    while (!Serial) {
+        delay(100);
+    }
+    Serial.println("envirodinges.status: started");
 }
 
 void ProcessChar(String &buffer, const char c) {
