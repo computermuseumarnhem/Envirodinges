@@ -8,9 +8,9 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "/home/denz/Drive/CMA/Envirodinges/serial-mux/include",
-                "/home/denz/Drive/CMA/Envirodinges/serial-mux/src",
-                "/home/denz/Drive/CMA/Envirodinges/serial-mux/.pio/libdeps/sparkfun_promicro16/AltSoftSerial",
+                "/home/denz/Projects/Envirodinges/serial-mux/include",
+                "/home/denz/Projects/Envirodinges/serial-mux/src",
+                "/home/denz/Projects/Envirodinges/serial-mux/.pio/libdeps/sparkfun_promicro16/AltSoftSerial",
                 "/home/denz/.platformio/packages/framework-arduino-avr/cores/arduino",
                 "/home/denz/.platformio/packages/framework-arduino-avr/variants/sparkfun_promicro",
                 "/home/denz/.platformio/packages/framework-arduino-avr/libraries/EEPROM/src",
@@ -23,9 +23,9 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "/home/denz/Drive/CMA/Envirodinges/serial-mux/include",
-                    "/home/denz/Drive/CMA/Envirodinges/serial-mux/src",
-                    "/home/denz/Drive/CMA/Envirodinges/serial-mux/.pio/libdeps/sparkfun_promicro16/AltSoftSerial",
+                    "/home/denz/Projects/Envirodinges/serial-mux/include",
+                    "/home/denz/Projects/Envirodinges/serial-mux/src",
+                    "/home/denz/Projects/Envirodinges/serial-mux/.pio/libdeps/sparkfun_promicro16/AltSoftSerial",
                     "/home/denz/.platformio/packages/framework-arduino-avr/cores/arduino",
                     "/home/denz/.platformio/packages/framework-arduino-avr/variants/sparkfun_promicro",
                     "/home/denz/.platformio/packages/framework-arduino-avr/libraries/EEPROM/src",
@@ -37,7 +37,7 @@
                 ]
             },
             "defines": [
-                "PLATFORMIO=50204",
+                "PLATFORMIO=60105",
                 "ARDUINO_AVR_PROMICRO16",
                 "F_CPU=16000000L",
                 "ARDUINO_ARCH_AVR",

@@ -11,7 +11,7 @@
  * Serial1: HardwareSerial port of the Pro Micro
  *    - RXI 
  *    - TXO
- * Serial2: AltSoftSerial (by Paul Stoffregen). Pins are fixed to:
+ * Serial2: SoftwareSerial
  * 
  *                        USB
  *                       -----
@@ -53,11 +53,15 @@
  * 
  */
 
+#define SERIAL1_TX 1
+#define SERIAL1_RX 2
+#define SERIAL2_TX 9
+#define SERIAL2_RX 4
 
 #include <Arduino.h>
-#include <AltSoftSerial.h>
+#include <SoftwareSerial.h>
 
-AltSoftSerial Serial2;
+SoftwareSerial Serial2(SERIAL2_RX, SERIAL2_TX);
 String Buffer1;
 String Buffer2;
 
@@ -65,11 +69,12 @@ void setup() {
     Serial.begin(115200);
     Serial1.begin(9600);
     Serial2.begin(9600);
+    Serial2.listen();
     Buffer1 = "";
     Buffer2 = "";
 
     while (!Serial) {
-        delay(100);
+        delay(5000);
     }
     Serial.println("envirodinges.status: started");
 }
