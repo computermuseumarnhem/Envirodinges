@@ -13,35 +13,15 @@
  *    - TXO
  * Serial2: SoftwareSerial
  *
- *                        USB
- *                       -----
- *                   ---|     |---
- *  Serial1  TX  1  |   |     |   | RAW
- *  Serial1  RX  0  |    -----    | GND
- *              GND |             | RST
- *              GND |             | VCC
- *               2  |             | 21
- *               3  |             | 20
- *  Serial2   RX 4  |             | 19
- *               5  |             | 18
- *               6  |             | 15
- *               7  |             | 14
- *               8  |             | 16
- *  Serial2   TX 9  |             | 10
- *                   -------------
- *
- *
- * Of course, I mounted the device the other way around.
- *
  *      -------------
- *  10  |             |  9  TX   Serial2
+ *  10  |             |  9
  *  16  |             |  8
  *  14  |             |  7
  *  15  |             |  6
  *  18  |             |  5
- *  19  |             |  4  RX   Serial2
- *  20  |             |  3
- *  21  |             |  2
+ *  19  |             |  4
+ *  20  |             |  3  TX   Serial2
+ *  21  |             |  2  RX   Serial2
  * VCC  |             | GND
  * RST  |             | GND
  * GND  |    -----    |  0  RX   Serial1
@@ -50,13 +30,12 @@
  *           -----
  *                       USB
  *
- *
  */
 
+#define SERIAL1_RX 0
 #define SERIAL1_TX 1
-#define SERIAL1_RX 2
-#define SERIAL2_TX 9
-#define SERIAL2_RX 4
+#define SERIAL2_RX 2
+#define SERIAL2_TX 3
 
 #include <Arduino.h>
 #include <SoftwareSerial.h>
@@ -109,9 +88,11 @@ void setup() {
     Buffer1 = "";
     Buffer2 = "";
 
-    while (!Serial) {
-        delay(5000);
-    }
+    // Waiting for the USB Serial to be connected
+    // is not necessary nor wanted
+
+    delay(5000);
+
     Serial.println("envirodinges.status: started");
 }
 
@@ -120,7 +101,7 @@ void ProcessChar(String &buffer, const char c) {
         case '\r':
             break;  // ignore
         case '\n':
-            Serial.println(buffer);
+            Serial.println("envirodinges." + buffer);
             buffer = "";
             break;
         default:
@@ -140,6 +121,6 @@ void loop() {
         ProcessChar(Buffer2, c);
     }
     if (timer.next()) {
-        Serial.println("envirodinges.status: running");
+        Serial.println("envirodinges.status: keepalive");
     }
 }
