@@ -9,19 +9,21 @@
  *
  * Serial: Virtual serial port over USB (/dev/ttyUSBx on the Pi)
  * Serial1: HardwareSerial port of the Pro Micro
- *    - RXI
- *    - TXO
+ *    - RXI (pin 0)
+ *    - TXO (pin 1), unused
  * Serial2: SoftwareSerial
+ *    - RXI (pin 8)
+ *    - TXO (pin 9), unused
  *
  *      -------------
- *  10  |             |  9
- *  16  |             |  8
+ *  10  |             |  9  TX   Serial2
+ *  16  |             |  8  RX   Serial2
  *  14  |             |  7
  *  15  |             |  6
  *  18  |             |  5
  *  19  |             |  4
- *  20  |             |  3  TX   Serial2
- *  21  |             |  2  RX   Serial2
+ *  20  |             |  3
+ *  21  |             |  2
  * VCC  |             | GND
  * RST  |             | GND
  * GND  |    -----    |  0  RX   Serial1
@@ -34,8 +36,8 @@
 
 #define SERIAL1_RX 0
 #define SERIAL1_TX 1
-#define SERIAL2_RX 2
-#define SERIAL2_TX 3
+#define SERIAL2_RX 8
+#define SERIAL2_TX 9
 
 #include <Arduino.h>
 #include <SoftwareSerial.h>
