@@ -123,6 +123,6 @@ void loop() {
         ProcessChar(Buffer2, c);
     }
     if (timer.next()) {
-        Serial.println("envirodinges.status: keepalive");
+        Serial.println("envirodinges.status: alive");
     }
 }
